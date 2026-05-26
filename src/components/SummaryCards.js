@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import API_BASE from '../config';
 import axios from 'axios';
 
 const fmt = (n) =>
@@ -8,8 +9,7 @@ export default function SummaryCards({ terminal, refreshKey }) {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    axios
-      .get('/api/revenue/summary')
+    axios.get(`${API_BASE}/api/revenue/summary`)
       .then(res => {
         const found = res.data.find(s => s._id === terminal);
         setData(found || null);

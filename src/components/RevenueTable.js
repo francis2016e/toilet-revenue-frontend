@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import API_BASE from '../config';
 import axios from 'axios';
 
 const fmt = (n) =>
@@ -11,9 +12,7 @@ export default function RevenueTable({ terminal, refreshKey }) {
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(
-        `/api/revenue?terminal=${encodeURIComponent(terminal)}`
-      );
+      const res = await axios.get(`${API_BASE}/api/revenue?terminal=${encodeURIComponent(terminal)}`);
       setRecords(res.data);
     } catch (err) {
       console.error(err);
@@ -33,7 +32,7 @@ export default function RevenueTable({ terminal, refreshKey }) {
     if (!confirmed) return;
 
     try {
-      await axios.delete(`/api/revenue/${id}`);
+      await axios.delete(`${API_BASE}/api/revenue/${id}`);
       fetchRecords();
     } catch (err) {
       alert('Could not delete this record. Please try again.');

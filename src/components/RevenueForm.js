@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import API_BASE from '../config';
 import axios from 'axios';
 
 const DAYS = [
@@ -47,7 +48,7 @@ export default function RevenueForm({ terminal, onSuccess }) {
     setStatus(null);
 
     try {
-      await axios.post('/api/revenue', { ...form, terminal });
+      await axios.post(`${API_BASE}/api/revenue`, { ...form, terminal });
       setStatus({
         type: 'success',
         msg: `✅ Entry saved! Excel file for ${terminal} has been updated.`
@@ -71,10 +72,7 @@ export default function RevenueForm({ terminal, onSuccess }) {
   };
 
   const handleDownload = () => {
-    window.open(
-      `/api/revenue/download/${encodeURIComponent(terminal)}`,
-      '_blank'
-    );
+    window.open(`${API_BASE}/api/revenue/download/${encodeURIComponent(terminal)}`, '_blank');
   };
 
   return (
