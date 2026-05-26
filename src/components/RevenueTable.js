@@ -1,18 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
-import API_BASE from '../config';
 import axios from 'axios';
+import API_BASE from '../config';
+import EditModal from './EditModal';
 
 const fmt = (n) =>
   `₦${Number(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
 export default function RevenueTable({ terminal, refreshKey }) {
-  const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [records,    setRecords]    = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [editRecord, setEditRecord] = useState(null);
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/api/revenue?terminal=${encodeURIComponent(terminal)}`);
+      const res = await axios.get(
+        `${API_BASE}/api/revenue?terminal=${encodeURIComponent(terminal)}`
+      );
       setRecords(res.data);
     } catch (err) {
       console.error(err);
@@ -30,7 +34,6 @@ export default function RevenueTable({ terminal, refreshKey }) {
       'Are you sure you want to delete this record?\nThe Excel file will be updated automatically.'
     );
     if (!confirmed) return;
-
     try {
       await axios.delete(`${API_BASE}/api/revenue/${id}`);
       fetchRecords();
@@ -47,16 +50,13 @@ export default function RevenueTable({ terminal, refreshKey }) {
     );
   }
 
-  const totalRevenue  = records.reduce((s, r) => s + r.totalAmountPerDay, 0);
-  const totalExpenses = records.reduce((s, r) => s + r.totalExpensesPerDay, 0);
+  const totalRevenue  = records.reduce((s, r) => s + r.totalAmountPerDay,      0);
+  const totalExpenses = records.reduce((s, r) => s + r.totalExpensesPerDay,    0);
   const totalBalance  = records.reduce((s, r) => s + r.remainingBalancePerDay, 0);
 
   return (
     <div className="card">
-      <div
-        className="card-title"
-        style={{ justifyContent: 'space-between' }}
-      >
+      <div className="card-title" style={{ justifyContent: 'space-between' }}>
         <span>📊 Records — {terminal}</span>
         <span style={{ fontSize: '0.8rem', color: '#9ca3af', fontWeight: 400 }}>
           {records.length} {records.length === 1 ? 'entry' : 'entries'}
@@ -83,7 +83,7 @@ export default function RevenueTable({ terminal, refreshKey }) {
                 <th>Expenses Description</th>
                 <th>Total Expenses/Day</th>
                 <th>Remaining Balance/Day</th>
-                <th>Action</th>
+                <th>Actions</th>
               </tr>
             </thead>
 
@@ -97,18 +97,12 @@ export default function RevenueTable({ terminal, refreshKey }) {
                   </td>
 
                   <td>
-                    <span
-                      className="badge"
-                      style={{ background: '#e8f5ee', color: '#1a7a4a' }}
-                    >
+                    <span className="badge" style={{ background: '#e8f5ee', color: '#1a7a4a' }}>
                       {record.day}
                     </span>
                   </td>
 
-                  <td
-                    className="mono"
-                    style={{ color: '#1a7a4a', fontWeight: 600 }}
-                  >
+                  <td className="mono" style={{ color: '#1a7a4a', fontWeight: 600 }}>
                     {fmt(record.totalAmountPerDay)}
                   </td>
 
@@ -124,21 +118,34 @@ export default function RevenueTable({ terminal, refreshKey }) {
                     className="mono"
                     style={{
                       fontWeight: 700,
-                      color: record.remainingBalancePerDay >= 0
-                        ? '#1a7a4a'
-                        : '#dc2626'
+                      color: record.remainingBalancePerDay >= 0 ? '#1a7a4a' : '#dc2626'
                     }}
                   >
                     {fmt(record.remainingBalancePerDay)}
                   </td>
 
                   <td>
-                    <button
-                      className="btn btn-danger"
-                      onClick={() => handleDelete(record._id)}
-                    >
-                      🗑 Delete
-                    </button>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        className="btn"
+                        style={{
+                          background: '#fdf6e3',
+                          color: '#c8982a',
+                          border: '1.5px solid #c8982a',
+                          padding: '6px 12px',
+                          fontSize: '0.8rem'
+                        }}
+                        onClick={() => setEditRecord(record)}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => handleDelete(record._id)}
+                      >
+                        🗑
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -146,29 +153,15 @@ export default function RevenueTable({ terminal, refreshKey }) {
 
             <tfoot>
               <tr style={{ background: '#0f5233', color: 'white', fontWeight: 700 }}>
-                <td
-                  colSpan={3}
-                  style={{ padding: '12px 14px', color: 'white' }}
-                >
-                  TOTALS
-                </td>
-                <td
-                  className="mono"
-                  style={{ padding: '12px 14px', color: '#86efac' }}
-                >
+                <td colSpan={3} style={{ padding: '12px 14px', color: 'white' }}>TOTALS</td>
+                <td className="mono" style={{ padding: '12px 14px', color: '#86efac' }}>
                   {fmt(totalRevenue)}
                 </td>
                 <td></td>
-                <td
-                  className="mono"
-                  style={{ padding: '12px 14px', color: '#fca5a5' }}
-                >
+                <td className="mono" style={{ padding: '12px 14px', color: '#fca5a5' }}>
                   {fmt(totalExpenses)}
                 </td>
-                <td
-                  className="mono"
-                  style={{ padding: '12px 14px', color: 'white' }}
-                >
+                <td className="mono" style={{ padding: '12px 14px', color: 'white' }}>
                   {fmt(totalBalance)}
                 </td>
                 <td></td>
@@ -176,6 +169,15 @@ export default function RevenueTable({ terminal, refreshKey }) {
             </tfoot>
           </table>
         </div>
+      )}
+
+      {/* Edit Modal */}
+      {editRecord && (
+        <EditModal
+          record={editRecord}
+          onClose={() => setEditRecord(null)}
+          onSaved={fetchRecords}
+        />
       )}
     </div>
   );
