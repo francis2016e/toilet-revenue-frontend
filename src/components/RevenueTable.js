@@ -2,11 +2,15 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import API_BASE from '../config';
 import EditModal from './EditModal';
+import DateRangeDownload from './DateRangeDownload';
+import { useAuth } from '../context/AuthContext';
 
 const fmt = (n) =>
   `₦${Number(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
-export default function RevenueTable({ terminal, refreshKey }) {
+export default function RevenueTable({ terminal, toiletType, refreshKey }) {
+  const { isAdmin } = useAuth();
+
   const [records,    setRecords]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [editRecord, setEditRecord] = useState(null);
@@ -15,7 +19,7 @@ export default function RevenueTable({ terminal, refreshKey }) {
     setLoading(true);
     try {
       const res = await axios.get(
-        `${API_BASE}/api/revenue?terminal=${encodeURIComponent(terminal)}`
+        `${API_BASE}/api/revenue?terminal=${encodeURIComponent(terminal)}&toiletType=${encodeURIComponent(toiletType)}`
       );
       setRecords(res.data);
     } catch (err) {
@@ -23,7 +27,7 @@ export default function RevenueTable({ terminal, refreshKey }) {
     } finally {
       setLoading(false);
     }
-  }, [terminal]);
+  }, [terminal, toiletType]);
 
   useEffect(() => {
     fetchRecords();
@@ -56,19 +60,22 @@ export default function RevenueTable({ terminal, refreshKey }) {
 
   return (
     <div className="card">
+
+      {/* Card Title */}
       <div className="card-title" style={{ justifyContent: 'space-between' }}>
-        <span>📊 Records — {terminal}</span>
+        <span>📊 Records — {terminal} › {toiletType}</span>
         <span style={{ fontSize: '0.8rem', color: '#9ca3af', fontWeight: 400 }}>
           {records.length} {records.length === 1 ? 'entry' : 'entries'}
         </span>
       </div>
 
+      {/* Empty State */}
       {records.length === 0 ? (
         <div className="empty-state">
           <div className="icon">📋</div>
           <p>
-            No entries yet for {terminal}.<br />
-            Use the form above to add the first entry.
+            No entries yet for {toiletType} in {terminal}.<br />
+            {isAdmin() && 'Use the form above to add the first entry.'}
           </p>
         </div>
       ) : (
@@ -83,7 +90,8 @@ export default function RevenueTable({ terminal, refreshKey }) {
                 <th>Expenses Description</th>
                 <th>Total Expenses/Day</th>
                 <th>Remaining Balance/Day</th>
-                <th>Actions</th>
+                {/* Actions column — admin only */}
+                {isAdmin() && <th>Actions</th>}
               </tr>
             </thead>
 
@@ -97,12 +105,18 @@ export default function RevenueTable({ terminal, refreshKey }) {
                   </td>
 
                   <td>
-                    <span className="badge" style={{ background: '#e8f5ee', color: '#1a7a4a' }}>
+                    <span
+                      className="badge"
+                      style={{ background: '#e8f5ee', color: '#1a7a4a' }}
+                    >
                       {record.day}
                     </span>
                   </td>
 
-                  <td className="mono" style={{ color: '#1a7a4a', fontWeight: 600 }}>
+                  <td
+                    className="mono"
+                    style={{ color: '#1a7a4a', fontWeight: 600 }}
+                  >
                     {fmt(record.totalAmountPerDay)}
                   </td>
 
@@ -118,42 +132,49 @@ export default function RevenueTable({ terminal, refreshKey }) {
                     className="mono"
                     style={{
                       fontWeight: 700,
-                      color: record.remainingBalancePerDay >= 0 ? '#1a7a4a' : '#dc2626'
+                      color: record.remainingBalancePerDay >= 0
+                        ? '#1a7a4a' : '#dc2626'
                     }}
                   >
                     {fmt(record.remainingBalancePerDay)}
                   </td>
 
-                  <td>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <button
-                        className="btn"
-                        style={{
-                          background: '#fdf6e3',
-                          color: '#c8982a',
-                          border: '1.5px solid #c8982a',
-                          padding: '6px 12px',
-                          fontSize: '0.8rem'
-                        }}
-                        onClick={() => setEditRecord(record)}
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        className="btn btn-danger"
-                        onClick={() => handleDelete(record._id)}
-                      >
-                        🗑
-                      </button>
-                    </div>
-                  </td>
+                  {/* Edit and Delete — admin only */}
+                  {isAdmin() && (
+                    <td>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          className="btn"
+                          style={{
+                            background: '#fdf6e3',
+                            color:      '#c8982a',
+                            border:     '1.5px solid #c8982a',
+                            padding:    '6px 12px',
+                            fontSize:   '0.8rem'
+                          }}
+                          onClick={() => setEditRecord(record)}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          className="btn btn-danger"
+                          onClick={() => handleDelete(record._id)}
+                        >
+                          🗑
+                        </button>
+                      </div>
+                    </td>
+                  )}
+
                 </tr>
               ))}
             </tbody>
 
             <tfoot>
               <tr style={{ background: '#0f5233', color: 'white', fontWeight: 700 }}>
-                <td colSpan={3} style={{ padding: '12px 14px', color: 'white' }}>TOTALS</td>
+                <td colSpan={3} style={{ padding: '12px 14px', color: 'white' }}>
+                  TOTALS
+                </td>
                 <td className="mono" style={{ padding: '12px 14px', color: '#86efac' }}>
                   {fmt(totalRevenue)}
                 </td>
@@ -164,21 +185,28 @@ export default function RevenueTable({ terminal, refreshKey }) {
                 <td className="mono" style={{ padding: '12px 14px', color: 'white' }}>
                   {fmt(totalBalance)}
                 </td>
-                <td></td>
+                {isAdmin() && <td></td>}
               </tr>
             </tfoot>
           </table>
         </div>
       )}
 
-      {/* Edit Modal */}
-      {editRecord && (
+      {/* Date Range Download — visible to everyone */}
+      <DateRangeDownload
+        defaultTerminal={terminal}
+        defaultToilet={toiletType}
+      />
+
+      {/* Edit Modal — admin only */}
+      {isAdmin() && editRecord && (
         <EditModal
           record={editRecord}
           onClose={() => setEditRecord(null)}
           onSaved={fetchRecords}
         />
       )}
+
     </div>
   );
 }

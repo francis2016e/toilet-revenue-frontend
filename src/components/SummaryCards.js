@@ -1,21 +1,25 @@
 import { useState, useEffect } from 'react';
-import API_BASE from '../config';
 import axios from 'axios';
+import API_BASE from '../config';
 
 const fmt = (n) =>
   `₦${Number(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
-export default function SummaryCards({ terminal, refreshKey }) {
+export default function SummaryCards({ terminal, toiletType, refreshKey }) {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    axios.get(`${API_BASE}/api/revenue/summary`)
+    axios
+      .get(`${API_BASE}/api/revenue/summary`)
       .then(res => {
-        const found = res.data.find(s => s._id === terminal);
+        const found = res.data.find(
+          s => s._id.terminal === terminal &&
+               s._id.toiletType === toiletType
+        );
         setData(found || null);
       })
       .catch(() => setData(null));
-  }, [terminal, refreshKey]);
+  }, [terminal, toiletType, refreshKey]);
 
   return (
     <div className="summary-grid">

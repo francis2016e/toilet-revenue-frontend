@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import API_BASE from '../config';
 import axios from 'axios';
+import API_BASE from '../config';
+import { useAuth } from '../context/AuthContext';
 
 const DAYS = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday',
@@ -10,13 +11,15 @@ const DAYS = [
 const getToday = () => new Date().toISOString().split('T')[0];
 
 const getDayName = (dateString) => {
-  const d = new Date(dateString + 'T00:00:00');
-  const jsDay = d.getDay(); // 0 = Sunday
-  const index  = jsDay === 0 ? 6 : jsDay - 1;
+  const d     = new Date(dateString + 'T00:00:00');
+  const jsDay = d.getDay();
+  const index = jsDay === 0 ? 6 : jsDay - 1;
   return DAYS[index];
 };
 
-export default function RevenueForm({ terminal, onSuccess }) {
+export default function RevenueForm({ terminal, toiletType, onSuccess }) {
+  const { isAdmin } = useAuth();
+
   const [form, setForm] = useState({
     date:                getToday(),
     day:                 getDayName(getToday()),
@@ -37,23 +40,24 @@ export default function RevenueForm({ terminal, onSuccess }) {
     }
   };
 
-  // Live-calculated remaining balance
-  const revenue  = parseFloat(form.totalAmountPerDay)   || 0;
-  const expenses = parseFloat(form.totalExpensesPerDay) || 0;
+  const revenue   = parseFloat(form.totalAmountPerDay)   || 0;
+  const expenses  = parseFloat(form.totalExpensesPerDay) || 0;
   const remaining = revenue - expenses;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setStatus(null);
-
     try {
-      await axios.post(`${API_BASE}/api/revenue`, { ...form, terminal });
+      await axios.post(`${API_BASE}/api/revenue`, {
+        ...form,
+        terminal,
+        toiletType
+      });
       setStatus({
         type: 'success',
-        msg: `✅ Entry saved! Excel file for ${terminal} has been updated.`
+        msg:  `✅ Entry saved for ${terminal} — ${toiletType}! Excel updated.`
       });
-      // Clear amounts but keep the date
       setForm(f => ({
         ...f,
         totalAmountPerDay:   '',
@@ -64,7 +68,7 @@ export default function RevenueForm({ terminal, onSuccess }) {
     } catch (err) {
       setStatus({
         type: 'error',
-        msg: `❌ Error: ${err.response?.data?.error || 'Could not save entry.'}`
+        msg:  `❌ Error: ${err.response?.data?.error || 'Could not save entry.'}`
       });
     } finally {
       setLoading(false);
@@ -72,13 +76,53 @@ export default function RevenueForm({ terminal, onSuccess }) {
   };
 
   const handleDownload = () => {
-    window.open(`${API_BASE}/api/revenue/download/${encodeURIComponent(terminal)}`, '_blank');
+    window.open(
+      `${API_BASE}/api/revenue/download/${encodeURIComponent(terminal)}`,
+      '_blank'
+    );
   };
 
+  // ── If not admin, show read-only message instead of form ──
+  if (!isAdmin()) {
+    return (
+      <div className="card">
+        <div className="card-title">
+          📝 Daily Entry —{' '}
+          <span style={{ color: '#c8982a' }}>{toiletType}</span>
+        </div>
+        <div style={{
+          textAlign:    'center',
+          padding:      '32px 24px',
+          background:   '#f9fafb',
+          borderRadius: '10px',
+          border:       '1.5px dashed #e5e7eb'
+        }}>
+          <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🔒</div>
+          <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#4b5563', marginBottom: '6px' }}>
+            View Only Mode
+          </p>
+          <p style={{ fontSize: '0.85rem', color: '#9ca3af', lineHeight: '1.6' }}>
+            You can view and download records below.<br />
+            Only administrators can add, edit or delete records.
+          </p>
+          <button
+            className="btn btn-download"
+            style={{ margin: '16px auto 0', display: 'inline-flex' }}
+            onClick={handleDownload}
+          >
+            📥 Download Excel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Admin sees full form ──
   return (
     <div className="card">
       <div className="card-title">
-        📝 New Daily Entry — {terminal}
+        📝 New Daily Entry —{' '}
+        <span style={{ color: '#c8982a' }}>{toiletType}</span>
       </div>
 
       {status && (
@@ -88,7 +132,6 @@ export default function RevenueForm({ terminal, onSuccess }) {
       <form onSubmit={handleSubmit}>
         <div className="form-grid">
 
-          {/* Date */}
           <div className="form-group">
             <label>Date</label>
             <input
@@ -100,19 +143,16 @@ export default function RevenueForm({ terminal, onSuccess }) {
             />
           </div>
 
-          {/* Day — auto-filled */}
           <div className="form-group">
             <label>Day</label>
             <input
               type="text"
-              name="day"
               value={form.day}
               readOnly
               className="calculated-field"
             />
           </div>
 
-          {/* Total Amount */}
           <div className="form-group">
             <label>Total Amount / Day (₦)</label>
             <input
@@ -127,7 +167,6 @@ export default function RevenueForm({ terminal, onSuccess }) {
             />
           </div>
 
-          {/* Expenses Description */}
           <div className="form-group">
             <label>Expenses Description</label>
             <textarea
@@ -139,7 +178,6 @@ export default function RevenueForm({ terminal, onSuccess }) {
             />
           </div>
 
-          {/* Total Expenses */}
           <div className="form-group">
             <label>Total Expenses / Day (₦)</label>
             <input
@@ -154,7 +192,6 @@ export default function RevenueForm({ terminal, onSuccess }) {
             />
           </div>
 
-          {/* Remaining Balance — auto-calculated */}
           <div className="form-group">
             <label>Remaining Balance / Day (₦) — Auto</label>
             <input
